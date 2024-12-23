@@ -4,6 +4,7 @@ import { generateTokenAndSetCookie } from './../utils/generateTokenAndSetCookie.
 import { sendVerificationEmail, sendWelcomeEmail } from '../mailtrap/emails.js';
 
 
+// Sign up
 export const signup = async (req, res)=>{
     const {email, password, name} = req.body;
 
@@ -50,6 +51,7 @@ export const signup = async (req, res)=>{
 
 }
 
+// Verify Email
 export const verifyEmail = async (req, res)=>{
     const {code} = req.body;
     try {
@@ -85,9 +87,44 @@ export const verifyEmail = async (req, res)=>{
     }
 
 }
+
+// Login
 export const login = async (req, res)=>{
-    res.send("Login routes")
+    const {email, password} = req.body;
+    try {
+        const user = await User.findOne({email});
+
+        if(!user){
+            return res.status(400).json({success: false, message: "Invalid credentials"});
+        }
+
+        const isPasswordValid = await bcryptjs.compare(password, user.password);
+        if(!isPasswordValid){
+            return res.status(400).json({success: false, message: "Invalid credentials"});
+        }
+
+        generateTokenAndSetCookie(res, user._id);
+
+        user.lastLogin = new Date();
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Logged in successfully",
+            user: {
+                ...user._doc,
+                password: undefined,
+            }
+        });
+
+    } catch (error) {
+        console.log("Error in login", error);
+        res.status(400).json({success: false, message: error.message});
+    }
 }
+
+// Logout
 export const logout = async (req, res)=>{
-    res.send("Logout routes")
+    res.clearCookie("token");
+    res.json({success: true, message: "Logged out successfully"});
 }
